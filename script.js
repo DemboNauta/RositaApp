@@ -1,82 +1,89 @@
 document.addEventListener('DOMContentLoaded', function () {
     const canvas = document.getElementById('canvas');
-    const context = canvas.getContext('2d', { willReadFrequently: true });
     const clearButton = document.getElementById('clear-btn');
     const undoButton = document.getElementById('undo-btn');
     const saveButton = document.getElementById('save-btn');
     const drawingsContainer = document.getElementById('drawings-container');
     const colorSelector=document.getElementById('colorSelector');
-  
-    let painting = false;
     let history = [];
     let currentStep = 0;
+    let ctx = canvas.getContext("2d");
+    ctx.lineWidth=5;
+    ctx.lineCap='round';
 
+
+  
     
+    function canvas_read_mouse(canvas, e) {
+      let canvasRect = canvas.getBoundingClientRect();
+      canvas.tc_x1 = canvas.tc_x2;
+      canvas.tc_y1 = canvas.tc_y2;
+      canvas.tc_x2 = e.clientX - canvasRect.left;
+      canvas.tc_y2 = e.clientY - canvasRect.top;
+  }
+  
+  function on_canvas_mouse_down(e) {
+      canvas_read_mouse(canvas, e);
+      canvas.tc_md = true;
+  }
+  
+  function on_canvas_mouse_up(e) {
+      canvas.tc_md = false;
+  }
+  
+  function on_canvas_mouse_move(e) {
+      canvas_read_mouse(canvas, e);
+      if (canvas.tc_md && (canvas.tc_x1 !== canvas.tc_x2 || canvas.tc_y1 !== canvas.tc_y2)) {
+          ctx = canvas.getContext("2d");
+          ctx.strokeStyle = colorSelector.value;
 
-  
-    function startPosition(e) {
-      painting = true;
-      draw(e);
-    }
-  
-    function endPosition() {
-      if (painting) {
-        painting = false;
-        context.beginPath();
-        if (!painting) {
-          const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
-          history.push(imageData);
-          currentStep++;
-        }
+          ctx.beginPath();
+          ctx.moveTo(canvas.tc_x1, canvas.tc_y1);
+          ctx.lineTo(canvas.tc_x2, canvas.tc_y2);
+          ctx.stroke();
       }
-    }
-    
+  }
   
-    function draw(e) {
-      if (!painting) return;
-    
-      let rect = canvas.getBoundingClientRect();
-      let offsetX = rect.left + window.pageXOffset;
-      let offsetY = rect.top + window.pageYOffset;
-    
-      let x, y;
-    
-      if (window.innerWidth < 800) {
-        x = (e.touches ? e.touches[0].clientX : e.clientX) - offsetX;
-        y = (e.touches ? e.touches[0].clientY : e.clientY) - offsetY;
-        if(x>50 && x<200){
-          x-=10;
-        }else if(x>200){
-          x-=30;
-        }
-        if(y>100){
-          y-=10;
-        }
-        
-      }else {
-        x = e.clientX - offsetX;
-        y = e.clientY - offsetY;
+  function canvas_read_touch(canvas, e) {
+      let canvasRect = canvas.getBoundingClientRect();
+      let touch = e.touches[0];
+      canvas.tc_x1 = canvas.tc_x2;
+      canvas.tc_y1 = canvas.tc_y2;
+      canvas.tc_x2 = touch.pageX - document.documentElement.scrollLeft - canvasRect.left;
+      canvas.tc_y2 = touch.pageY - document.documentElement.scrollTop - canvasRect.top;
+  }
+  
+  function on_canvas_touch_start(e) {
+      canvas_read_touch(canvas, e);
+      canvas.tc_md = true;
+  }
+  
+  function on_canvas_touch_end(e) {
+      canvas.tc_md = false;
+  }
+  
+  function on_canvas_touch_move(e) {
+      canvas_read_touch(canvas, e);
+      if (canvas.tc_md && (canvas.tc_x1 !== canvas.tc_x2 || canvas.tc_y1 !== canvas.tc_y2)) {
+          //alert(`${canvas.tc_x1} ${canvas.tc_y1} ${canvas.tc_x2} ${canvas.tc_y2}`);
+          ctx = canvas.getContext("2d");
+          ctx.strokeStyle = colorSelector.value;
+          ctx.beginPath();
+          ctx.moveTo(canvas.tc_x1, canvas.tc_y1);
+          ctx.lineTo(canvas.tc_x2, canvas.tc_y2);
+          ctx.stroke();
       }
-      context.lineWidth = 5;
-      context.lineCap = 'round';
-      context.strokeStyle = colorSelector.value;
-    
-      context.lineTo(x, y);
-      context.stroke();
-      context.beginPath();
-      context.moveTo(x, y);
-    }
+  }
 
     
     
     
-      
-      
       
       
   
     function clearCanvas() {
-      context.clearRect(0, 0, canvas.width, canvas.height);
+      ctx = canvas.getContext("2d");
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
       history = [];
       currentStep = -1;
     }
@@ -88,7 +95,7 @@ document.addEventListener('DOMContentLoaded', function () {
       }else if (currentStep > 0) {
         currentStep--;
         const imageData = history[currentStep];
-        context.putImageData(imageData, 0, 0);
+        ctx.putImageData(imageData, 0, 0);
       } else if(currentStep<0) {
         currentStep = 0;
       }
@@ -137,22 +144,16 @@ document.addEventListener('DOMContentLoaded', function () {
   
     
   
-    canvas.addEventListener('mousedown', startPosition);
-    canvas.addEventListener('mouseup', endPosition);
-    canvas.addEventListener('mousemove', draw);
+
   
-    // Eventos táctiles
-    canvas.addEventListener('touchstart', function (e) {
-      e.preventDefault();
-      startPosition(e.touches[0]);
-    });
-  
-    canvas.addEventListener('touchmove', function (e) {
-      e.preventDefault();
-      draw(e.touches[0]);
-    });
-  
-    canvas.addEventListener('touchend', endPosition);
+  canvas.addEventListener('mousedown', (e) => { on_canvas_mouse_down(e) }, false);
+  canvas.addEventListener('mouseup', (e) => { on_canvas_mouse_up(e) }, false);
+  canvas.addEventListener('mousemove', (e) => { on_canvas_mouse_move(e) }, false);
+  canvas.addEventListener('click', (e) => { on_canvas_mouse_move(e) }, false);
+  canvas.addEventListener('touchstart', (e) => { on_canvas_touch_start(e) }, false);
+  canvas.addEventListener('touchend', (e) => { on_canvas_touch_end(e) }, false);
+  canvas.addEventListener('touchmove', (e) => { on_canvas_touch_move(e) }, false);
+  canvas.addEventListener('touch', (e) => { on_canvas_touch_move(e) }, false);
   
     clearButton.addEventListener('click', clearCanvas);
     undoButton.addEventListener('click', undo);
