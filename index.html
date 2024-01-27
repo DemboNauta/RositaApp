@@ -9,13 +9,20 @@
 <body>
   <div class="app-container">
     <h1>RositaMaker</h1>
+    <select name="nombres" id="nombres">
+      <option value="edgar">Edgar</option>
+      <option value="carla">Carla</option>
+    </select>
     <canvas id="canvas"></canvas>
     <div class="button-container">
       <button id="clear-btn">Limpiar</button>
+      <input type="color" name="colorSelector" id="colorSelector">
       <button id="undo-btn">Deshacer</button>
       <button id="save-btn">Guardar</button>
     </div>
-    <div id="drawings-container"></div>
+    <div id="drawings-container">
+
+    </div>
   </div>
   <script src="script.js"></script>
 </body>

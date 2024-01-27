@@ -1,15 +1,18 @@
 document.addEventListener('DOMContentLoaded', function () {
     const canvas = document.getElementById('canvas');
-    const context = canvas.getContext('2d');
+    const context = canvas.getContext('2d', { willReadFrequently: true });
     const clearButton = document.getElementById('clear-btn');
     const undoButton = document.getElementById('undo-btn');
     const saveButton = document.getElementById('save-btn');
     const drawingsContainer = document.getElementById('drawings-container');
+    const colorSelector=document.getElementById('colorSelector');
   
     let painting = false;
     let history = [];
-    let currentStep = -1;
-    let drawingCount = 0;
+    let currentStep = 0;
+
+    
+
   
     function startPosition(e) {
       painting = true;
@@ -17,32 +20,56 @@ document.addEventListener('DOMContentLoaded', function () {
     }
   
     function endPosition() {
-      painting = false;
-      context.beginPath();
       if (painting) {
-        history.push(context.getImageData(0, 0, canvas.width, canvas.height));
-        currentStep++;
+        painting = false;
+        context.beginPath();
+        if (!painting) {
+          const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+          history.push(imageData);
+          currentStep++;
+        }
       }
     }
+    
   
     function draw(e) {
-        if (!painting) return;
-      
-        const rect = canvas.getBoundingClientRect();
-        const offsetX = rect.left + window.pageXOffset;
-        const offsetY = rect.top + window.pageYOffset;
-        const x = (e.touches ? e.touches[0].clientX : e.clientX) - offsetX - 20; // Ajuste de 0.5
-        const y = (e.touches ? e.touches[0].clientY : e.clientY) - offsetY - 10; // Ajuste de 0.5
-      
-        context.lineWidth = 5;
-        context.lineCap = 'round';
-        context.strokeStyle = '#000';
-      
-        context.lineTo(x, y);
-        context.stroke();
-        context.beginPath();
-        context.moveTo(x, y);
+      if (!painting) return;
+    
+      let rect = canvas.getBoundingClientRect();
+      let offsetX = rect.left + window.pageXOffset;
+      let offsetY = rect.top + window.pageYOffset;
+    
+      let x, y;
+    
+      if (window.innerWidth < 800) {
+        x = (e.touches ? e.touches[0].clientX : e.clientX) - offsetX;
+        y = (e.touches ? e.touches[0].clientY : e.clientY) - offsetY;
+        if(x>50 && x<200){
+          x-=10;
+        }else if(x>200){
+          x-=30;
+        }
+        if(y>100){
+          y-=10;
+        }
+        
+      }else {
+        x = e.clientX - offsetX;
+        y = e.clientY - offsetY;
       }
+      context.lineWidth = 5;
+      context.lineCap = 'round';
+      context.strokeStyle = colorSelector.value;
+    
+      context.lineTo(x, y);
+      context.stroke();
+      context.beginPath();
+      context.moveTo(x, y);
+    }
+
+    
+    
+    
       
       
       
@@ -55,33 +82,60 @@ document.addEventListener('DOMContentLoaded', function () {
     }
   
     function undo() {
-      if (currentStep > 0) {
+      if(currentStep ==0){
         currentStep--;
-        context.putImageData(history[currentStep], 0, 0);
+        clearCanvas();
+      }else if (currentStep > 0) {
+        currentStep--;
+        const imageData = history[currentStep];
+        context.putImageData(imageData, 0, 0);
+      } else if(currentStep<0) {
+        currentStep = 0;
       }
     }
+    
+    
   
     function saveDrawing() {
       const drawingData = canvas.toDataURL('image/png');
-      localStorage.setItem(`savedDrawing_${drawingCount}`, drawingData);
-      drawingCount++;
-      clearCanvas();
-      showDrawings();
+      const nombre = document.getElementById("nombres").value;
+    
+      const formData = new FormData();
+      formData.append('dibujo', drawingData);
+      formData.append('nombre', nombre);
+    
+      fetch('https://rositaapp.000webhostapp.com/guardar_dibujo.php', {
+        method: 'POST',
+        body: formData,
+      })
+        .then(response => response.json())
+        .then(data => {
+          console.log(data.mensaje);
+          clearCanvas();
+          showDrawings();
+        })
+        .catch(error => {
+          console.error('Error al guardar el dibujo:', error);
+        });
     }
-  
+    
+    
+
+
     function showDrawings() {
       drawingsContainer.innerHTML = '';
-      for (let i = 0; i < drawingCount; i++) {
-        const savedDrawing = localStorage.getItem(`savedDrawing_${i}`);
-        if (savedDrawing) {
-          const img = new Image();
-          img.src = savedDrawing;
   
-          // Agregar la imagen guardada al contenedor
-          drawingsContainer.appendChild(img);
-        }
-      }
-    }
+      fetch('https://rositaapp.000webhostapp.com/mostrar_dibujos.php')
+          .then(response => response.text())
+          .then(data => {
+              drawingsContainer.innerHTML = data;
+          })
+          .catch(error => {
+              console.error('Error al obtener dibujos:', error);
+          });
+  }
+  
+    
   
     canvas.addEventListener('mousedown', startPosition);
     canvas.addEventListener('mouseup', endPosition);
